@@ -18,15 +18,43 @@ const User = mongoose.model('User', {
 
 app.use(bodyParser.json());
 
+// Ruta para obtener todos los usuarios registrados
+app.get('/users', (req, res) => {
+    // Buscar todos los usuarios en la base de datos
+    User.find()
+        .then(users => {
+            res.status(200).json(users);
+        })
+        .catch(err => res.status(500).json({ error: err.message }));
+});
+
 // Ruta para el registro de usuarios
 app.post('/register', (req, res) => {
     const { username, password } = req.body;
 
-    // Crear un nuevo usuario
-    const newUser = new User({ username, password });
+    // Validar datos de entrada
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Se requieren un nombre de usuario y una contraseña' });
+    }
 
-    // Guardar el usuario en la base de datos
-    newUser.save()
+    // Validar longitud de contraseña
+    if (password.length < 6 || password.length > 20) {
+        return res.status(400).json({ error: 'La contraseña debe tener entre 6 y 20 caracteres' });
+    }
+
+    // Verificar si el nombre de usuario ya está en uso
+    User.findOne({ username })
+        .then(existingUser => {
+            if (existingUser) {
+                return res.status(400).json({ error: 'El nombre de usuario ya está en uso' });
+            }
+
+            // Crear un nuevo usuario
+            const newUser = new User({ username, password });
+
+            // Guardar el usuario en la base de datos
+            return newUser.save();
+        })
         .then(() => res.status(200).json({ message: 'Usuario registrado exitosamente' }))
         .catch(err => res.status(400).json({ error: err.message }));
 });
@@ -35,14 +63,18 @@ app.post('/register', (req, res) => {
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
 
+    // Validar datos de entrada
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Se requieren un nombre de usuario y una contraseña' });
+    }
+
     // Buscar el usuario en la base de datos
     User.findOne({ username, password })
         .then(user => {
             if (!user) {
-                res.status(401).json({ error: 'Credenciales incorrectas' });
-            } else {
-                res.status(200).json({ message: 'Inicio de sesión exitoso' });
+                return res.status(401).json({ error: 'Credenciales incorrectas' });
             }
+            res.status(200).json({ message: 'Inicio de sesión exitoso' });
         })
         .catch(err => res.status(500).json({ error: err.message }));
 });
